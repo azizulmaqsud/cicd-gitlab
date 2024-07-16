@@ -1,0 +1,50 @@
+stages:
+  - build
+  - deploy
+ 
+docker_build_backend:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - docker build -t backend backend
+    - docker tag backend azizul2go/three-tier-backend:latest
+    - echo "$DOCKERHUB_PASSWORD" | docker login -u azizul2go --password-stdin
+    - docker push azizul2go/three-tier-backend:latest
+ 
+docker_build_frontend:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - docker build -t frontend frontend
+    - docker tag frontend azizul2go/three-tier-frontend:latest
+    - echo "$DOCKERHUB_PASSWORD" | docker login -u azizul2go --password-stdin
+    - docker push azizul2go/three-tier-frontend:latest
+ 
+deploy_backend_k8s:
+  stage: deploy
+  image: bearengineer/awscli-kubectl
+  dependencies:
+    - docker_build_backend
+  script:
+    - aws eks update-kubeconfig --region us-east-1 --name july-24-eks
+    - ls -l deployments/
+    - kubectl get nodes
+    - chmod 644 deployments/backend-deployment.yaml deployments/backend-service.yaml
+    - kubectl apply -f deployments/backend-deployment.yaml -f deployments/backend-service.yaml
+    - kubectl rollout restart deployment python-backend-service
+
+deploy_frontend_k8s:
+  stage: deploy
+  image: bearengineer/awscli-kubectl
+  dependencies:
+    - docker_build_frontend
+  script:
+    - aws eks update-kubeconfig --region us-east-1 --name july-24-eks
+    - ls -l deployments/
+    - chmod 644 deployments/frontend-deployment.yaml deployments/frontend-service.yaml
+    - kubectl apply -f deployments/frontend-deployment.yaml -f deployments/frontend-service.yaml
+    - kubectl rollout restart deployment frontend-deployment
