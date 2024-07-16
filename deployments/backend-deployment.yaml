@@ -17,5 +17,5 @@ spec:
     spec:
       containers:
       - name: python-backend-service
-        image: shahedmehbub/feb-23-cicd-backend:latest
+        image: azizul2go/three-tier-backend:latest
         imagePullPolicy: Always
